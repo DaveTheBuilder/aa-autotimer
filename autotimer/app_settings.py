@@ -5,9 +5,18 @@ and have sensible defaults, except ``AUTOTIMER_CHANNEL_IDS`` which must be set
 for the bot to listen anywhere.
 """
 
-from typing import Set
+from typing import List, Set, Tuple
 
 from django.conf import settings
+
+_DEFAULT_STRUCTURE_TYPE_CHOICES = [
+    ("Orbital Skyhook", 81080),
+    ("Sovereignty Hub", 32458),
+    ("Astrahus", 35832),
+    ("Fortizar", 35833),
+    ("Keepstar", 35834),
+    ("Ansiblex Jump Bridge", 35841),
+]
 
 
 def channel_ids() -> Set[int]:
@@ -15,12 +24,29 @@ def channel_ids() -> Set[int]:
     return {int(pk) for pk in getattr(settings, "AUTOTIMER_CHANNEL_IDS", [])}
 
 
-def structure_type_id() -> int:
-    """Eve type ID used as structure type for created timers.
+def structure_type_choices() -> List[Tuple[str, int]]:
+    """Structure types offered in the Discord dropdown as (label, type ID)
+    pairs. Discord allows at most 25 options."""
+    return [
+        (str(label), int(type_id))
+        for label, type_id in getattr(
+            settings,
+            "AUTOTIMER_STRUCTURE_TYPE_CHOICES",
+            _DEFAULT_STRUCTURE_TYPE_CHOICES,
+        )
+    ][:25]
 
-    Default is 16213 (Caldari Control Tower), i.e. a POS tower.
-    """
-    return int(getattr(settings, "AUTOTIMER_STRUCTURE_TYPE_ID", 16213))
+
+def structure_type_id() -> int:
+    """Eve type ID used as structure type when nobody picks from the
+    dropdown before the timeout. Default is 81080 (Orbital Skyhook)."""
+    return int(getattr(settings, "AUTOTIMER_STRUCTURE_TYPE_ID", 81080))
+
+
+def select_timeout_seconds() -> int:
+    """How long to wait for a dropdown selection before creating the timer
+    with the default structure type."""
+    return int(getattr(settings, "AUTOTIMER_SELECT_TIMEOUT_SECONDS", 600))
 
 
 def timer_type() -> str:

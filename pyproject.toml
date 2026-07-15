@@ -27,6 +27,7 @@ dependencies = [
 test = [
     "pytest",
     "pytest-django",
+    "fakeredis",
 ]
 
 [tool.flit.module]

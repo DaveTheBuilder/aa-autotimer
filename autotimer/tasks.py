@@ -25,29 +25,43 @@ ERROR = "error"
 
 @shared_task
 def create_timers_from_message(
-    message_content: str, channel_id: int, author_name: str
+    message_content: str,
+    channel_id: int,
+    author_name: str,
+    structure_type_id: Optional[int] = None,
+    quiet: bool = False,
 ):
     """Create timers for all pastes in a Discord message and report back
-    to the channel."""
+    to the channel.
+
+    ``structure_type_id`` overrides the default structure type (used when a
+    type was picked from the Discord dropdown). With ``quiet`` only actual
+    creations are announced — used by the dropdown-timeout fallback so it
+    stays silent when a selection already created the timer.
+    """
     lines = []
     for parsed in parse_message(message_content):
-        status, detail = _create_timer(parsed, author_name)
-        lines.append(_feedback_line(parsed, status, detail))
+        status, timer, detail = _create_timer(
+            parsed, author_name, structure_type_id
+        )
+        if quiet and status != CREATED:
+            continue
+        lines.append(_feedback_line(parsed, status, timer, detail))
     if lines:
         _send_feedback(channel_id, "\n".join(lines))
 
 
 def _create_timer(
-    parsed: ParsedTimer, author_name: str
-) -> Tuple[str, Optional[str]]:
+    parsed: ParsedTimer, author_name: str, structure_type_id: Optional[int]
+) -> Tuple[str, Optional[Timer], Optional[str]]:
     if parsed.date <= django_timezone.now():
         logger.info("%s: ignoring timer with elapsed date %s", parsed, parsed.date)
-        return STALE, None
+        return STALE, None, None
 
     solar_system = _resolve_solar_system(parsed.solar_system_name)
     if not solar_system:
         logger.warning("%s: unknown solar system", parsed)
-        return ERROR, f"unknown solar system `{parsed.solar_system_name}`"
+        return ERROR, None, f"unknown solar system `{parsed.solar_system_name}`"
 
     window = timedelta(minutes=app_settings.duplicate_window_minutes())
     if Timer.objects.filter(
@@ -57,10 +71,10 @@ def _create_timer(
         date__lte=parsed.date + window,
     ).exists():
         logger.info("%s: duplicate timer, skipping", parsed)
-        return DUPLICATE, None
+        return DUPLICATE, None, None
 
     structure_type, _ = EveType.objects.get_or_create_esi(
-        id=app_settings.structure_type_id()
+        id=structure_type_id or app_settings.structure_type_id()
     )
     notes = f"Created from Discord paste by {author_name}."
     if parsed.distance:
@@ -78,7 +92,7 @@ def _create_timer(
         details_notes=notes,
     )
     logger.info("%s: created timer %d", parsed, timer.pk)
-    return CREATED, None
+    return CREATED, timer, None
 
 
 def _resolve_solar_system(name: str) -> Optional[EveSolarSystem]:
@@ -101,11 +115,17 @@ def _resolve_solar_system(name: str) -> Optional[EveSolarSystem]:
         return None
 
 
-def _feedback_line(parsed: ParsedTimer, status: str, detail: Optional[str]) -> str:
+def _feedback_line(
+    parsed: ParsedTimer,
+    status: str,
+    timer: Optional[Timer],
+    detail: Optional[str],
+) -> str:
     eve_time = parsed.date.strftime("%Y-%m-%d %H:%M")
     if status == CREATED:
         return (
-            f"\N{WHITE HEAVY CHECK MARK} Timer created: **{parsed}** \N{EM DASH} "
+            f"\N{WHITE HEAVY CHECK MARK} Timer created: **{parsed}** "
+            f"\N{EM DASH} {timer.structure_type.name}, "
             f"{app_settings.timer_type().capitalize()} at {eve_time} EVE "
             f"\N{EM DASH} {_timerboard_url()}"
         )

@@ -69,6 +69,12 @@ class TestCreateTimersFromMessage(TestCase):
             eve_group=group,
             published=True,
         )
+        cls.skyhook_type = EveType.objects.create(
+            id=81080,
+            name="Orbital Skyhook",
+            eve_group=group,
+            published=True,
+        )
 
     def test_creates_timer_from_paste(self, mock_send_feedback):
         create_timers_from_message(
@@ -130,6 +136,51 @@ class TestCreateTimersFromMessage(TestCase):
         self.assertEqual(Timer.objects.count(), 0)
         feedback = mock_send_feedback.call_args[0][1]
         self.assertIn("unknown solar system", feedback)
+
+    def test_uses_selected_structure_type(self, mock_send_feedback):
+        create_timers_from_message(
+            message_content=SAMPLE,
+            channel_id=42,
+            author_name="Big Dave",
+            structure_type_id=81080,
+        )
+
+        timer = Timer.objects.get()
+        self.assertEqual(timer.structure_type, self.skyhook_type)
+        feedback = mock_send_feedback.call_args[0][1]
+        self.assertIn("Orbital Skyhook", feedback)
+
+    def test_quiet_mode_announces_creation(self, mock_send_feedback):
+        create_timers_from_message(
+            message_content=SAMPLE, channel_id=42, author_name="Big Dave", quiet=True
+        )
+
+        self.assertEqual(Timer.objects.count(), 1)
+        feedback = mock_send_feedback.call_args[0][1]
+        self.assertIn("Timer created", feedback)
+
+    def test_quiet_mode_is_silent_on_duplicate(self, mock_send_feedback):
+        create_timers_from_message(
+            message_content=SAMPLE, channel_id=42, author_name="Big Dave"
+        )
+        mock_send_feedback.reset_mock()
+
+        create_timers_from_message(
+            message_content=SAMPLE, channel_id=42, author_name="Big Dave", quiet=True
+        )
+
+        self.assertEqual(Timer.objects.count(), 1)
+        mock_send_feedback.assert_not_called()
+
+    def test_quiet_mode_is_silent_on_stale(self, mock_send_feedback):
+        stale = _sample_with_date(django_timezone.now() - timedelta(hours=2))
+
+        create_timers_from_message(
+            message_content=stale, channel_id=42, author_name="Big Dave", quiet=True
+        )
+
+        self.assertEqual(Timer.objects.count(), 0)
+        mock_send_feedback.assert_not_called()
 
     def test_does_nothing_for_message_without_paste(self, mock_send_feedback):
         create_timers_from_message(

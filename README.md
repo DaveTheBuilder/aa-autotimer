@@ -21,11 +21,15 @@ timer was created (or telling you it was a duplicate / stale / unparsable).
 
 - A cog for [allianceauth-discordbot](https://github.com/Solar-Helix-Independent-Transport/allianceauth-discordbot)
   listens for messages in the configured channels.
-- Messages containing a paste get a ⏳ reaction and are handed to a Celery task.
-- The task resolves the solar system (from the local eveuniverse data, falling
-  back to ESI), guards against duplicate and elapsed timers, and creates a
-  `structuretimers` Timer via the ORM.
-- The bot replies in the channel with the result.
+- Messages containing a paste get a ⏳ reaction and a reply with a
+  **structure type dropdown** (Skyhook, Sov Hub, citadels, ... — configurable).
+- Picking a type hands the paste to a Celery task, which resolves the solar
+  system (from local eveuniverse data, falling back to ESI), guards against
+  duplicate and elapsed timers, and creates a `structuretimers` Timer via the
+  ORM. The bot replies with the result.
+- If nobody picks within `AUTOTIMER_SELECT_TIMEOUT_SECONDS` (default 10
+  minutes), the timer is created with the default structure type, so timers
+  are never lost. The dropdown survives bot restarts.
 
 ## Requirements
 
@@ -70,7 +74,9 @@ All settings go in your Auth `local.py`.
 | Setting | Default | Description |
 | ------- | ------- | ----------- |
 | `AUTOTIMER_CHANNEL_IDS` | `[]` | **Required.** List of Discord channel IDs to watch for pastes. |
-| `AUTOTIMER_STRUCTURE_TYPE_ID` | `16213` | Eve type ID used as the structure type for created timers. Default is Caldari Control Tower (a POS). |
+| `AUTOTIMER_STRUCTURE_TYPE_CHOICES` | Skyhook, Sov Hub, Astrahus, Fortizar, Keepstar, Ansiblex | Options in the structure type dropdown, as a list of `("Label", type_id)` pairs (max 25). |
+| `AUTOTIMER_STRUCTURE_TYPE_ID` | `81080` | Eve type ID used when nobody picks from the dropdown before the timeout. Default is Orbital Skyhook. |
+| `AUTOTIMER_SELECT_TIMEOUT_SECONDS` | `600` | How long to wait for a dropdown pick before creating the timer with the default type. |
 | `AUTOTIMER_TIMER_TYPE` | `"FINAL"` | Timer type. One of `NONE`, `ARMOR`, `HULL`, `FINAL`, `ANCHORING`, `UNANCHORING`, `MOONMINING`, `THEFT`, `PRELIMINARY`. |
 | `AUTOTIMER_OBJECTIVE` | `"HOSTILE"` | Objective. One of `UNDEFINED`, `HOSTILE`, `FRIENDLY`, `NEUTRAL`. |
 | `AUTOTIMER_VISIBILITY` | `"ALLIANCE"` | Visibility. One of `UNRESTRICTED`, `ALLIANCE`, `CORPORATION`. |
