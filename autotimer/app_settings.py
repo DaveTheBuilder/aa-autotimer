@@ -5,7 +5,7 @@ and have sensible defaults, except ``AUTOTIMER_CHANNEL_IDS`` which must be set
 for the bot to listen anywhere.
 """
 
-from typing import List, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from django.conf import settings
 
@@ -63,6 +63,21 @@ def objective() -> str:
 def visibility() -> str:
     """Visibility for created timers. Name of a Timer.Visibility member."""
     return str(getattr(settings, "AUTOTIMER_VISIBILITY", "ALLIANCE"))
+
+
+def alliance_id() -> Optional[int]:
+    """EVE alliance ID stamped on created timers. Required for ALLIANCE
+    visibility - structuretimers hides alliance-restricted timers whose
+    alliance does not match the viewer's."""
+    value = getattr(settings, "AUTOTIMER_ALLIANCE_ID", None)
+    return int(value) if value else None
+
+
+def corporation_id() -> Optional[int]:
+    """EVE corporation ID stamped on created timers. Required for
+    CORPORATION visibility."""
+    value = getattr(settings, "AUTOTIMER_CORPORATION_ID", None)
+    return int(value) if value else None
 
 
 def is_important() -> bool:

@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone as django_timezone
+
+from allianceauth.eveonline.models import EveAllianceInfo
 
 from eveuniverse.models import (
     EveCategory,
@@ -75,6 +77,12 @@ class TestCreateTimersFromMessage(TestCase):
             eve_group=group,
             published=True,
         )
+        cls.alliance = EveAllianceInfo.objects.create(
+            alliance_id=99005000,
+            alliance_name="Test Alliance",
+            alliance_ticker="TEST",
+            executor_corp_id=2000001,
+        )
 
     def test_creates_timer_from_paste(self, mock_send_feedback):
         create_timers_from_message(
@@ -87,6 +95,7 @@ class TestCreateTimersFromMessage(TestCase):
         self.assertEqual(timer.timer_type, Timer.Type.FINAL)
         self.assertEqual(timer.objective, Timer.Objective.HOSTILE)
         self.assertEqual(timer.visibility, Timer.Visibility.ALLIANCE)
+        self.assertEqual(timer.eve_alliance, self.alliance)
         self.assertEqual(timer.structure_name, "10-6")
         self.assertEqual(timer.location_details, "Planet 10 - Moon 6")
         self.assertIn("Big Dave", timer.details_notes)
@@ -136,6 +145,18 @@ class TestCreateTimersFromMessage(TestCase):
         self.assertEqual(Timer.objects.count(), 0)
         feedback = mock_send_feedback.call_args[0][1]
         self.assertIn("unknown solar system", feedback)
+
+    @override_settings(AUTOTIMER_ALLIANCE_ID=None)
+    def test_falls_back_to_unrestricted_without_alliance(
+        self, mock_send_feedback
+    ):
+        create_timers_from_message(
+            message_content=SAMPLE, channel_id=42, author_name="Big Dave"
+        )
+
+        timer = Timer.objects.get()
+        self.assertEqual(timer.visibility, Timer.Visibility.UNRESTRICTED)
+        self.assertIsNone(timer.eve_alliance)
 
     def test_uses_selected_structure_type(self, mock_send_feedback):
         create_timers_from_message(

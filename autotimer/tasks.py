@@ -76,6 +76,7 @@ def _create_timer(
     structure_type, _ = EveType.objects.get_or_create_esi(
         id=structure_type_id or app_settings.structure_type_id()
     )
+    visibility, eve_alliance, eve_corporation = _resolve_visibility()
     notes = f"Created from Discord paste by {author_name}."
     if parsed.distance:
         notes += f"\nDistance: {parsed.distance}"
@@ -84,7 +85,9 @@ def _create_timer(
         structure_type=structure_type,
         timer_type=Timer.Type[app_settings.timer_type()],
         objective=Timer.Objective[app_settings.objective()],
-        visibility=Timer.Visibility[app_settings.visibility()],
+        visibility=visibility,
+        eve_alliance=eve_alliance,
+        eve_corporation=eve_corporation,
         is_important=app_settings.is_important(),
         date=parsed.date,
         structure_name=parsed.structure_name,
@@ -93,6 +96,40 @@ def _create_timer(
     )
     logger.info("%s: created timer %d", parsed, timer.pk)
     return CREATED, timer, None
+
+
+def _resolve_visibility():
+    """Return (visibility, eve_alliance, eve_corporation) for new timers.
+
+    Restricted visibility only works when the timer carries the matching
+    alliance/corporation - structuretimers hides restricted timers with an
+    empty alliance/corporation from everyone. Fall back to UNRESTRICTED
+    when the required ID is not configured or not known to Auth.
+    """
+    from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+
+    visibility = Timer.Visibility[app_settings.visibility()]
+    if visibility == Timer.Visibility.ALLIANCE:
+        alliance = EveAllianceInfo.objects.filter(
+            alliance_id=app_settings.alliance_id()
+        ).first()
+        if alliance:
+            return visibility, alliance, None
+        logger.warning(
+            "AUTOTIMER_ALLIANCE_ID is not set or unknown to Auth - falling "
+            "back to unrestricted visibility"
+        )
+    elif visibility == Timer.Visibility.CORPORATION:
+        corporation = EveCorporationInfo.objects.filter(
+            corporation_id=app_settings.corporation_id()
+        ).first()
+        if corporation:
+            return visibility, None, corporation
+        logger.warning(
+            "AUTOTIMER_CORPORATION_ID is not set or unknown to Auth - "
+            "falling back to unrestricted visibility"
+        )
+    return Timer.Visibility.UNRESTRICTED, None, None
 
 
 def _resolve_solar_system(name: str) -> Optional[EveSolarSystem]:

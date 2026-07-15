@@ -80,6 +80,8 @@ All settings go in your Auth `local.py`.
 | `AUTOTIMER_TIMER_TYPE` | `"FINAL"` | Timer type. One of `NONE`, `ARMOR`, `HULL`, `FINAL`, `ANCHORING`, `UNANCHORING`, `MOONMINING`, `THEFT`, `PRELIMINARY`. |
 | `AUTOTIMER_OBJECTIVE` | `"HOSTILE"` | Objective. One of `UNDEFINED`, `HOSTILE`, `FRIENDLY`, `NEUTRAL`. |
 | `AUTOTIMER_VISIBILITY` | `"ALLIANCE"` | Visibility. One of `UNRESTRICTED`, `ALLIANCE`, `CORPORATION`. |
+| `AUTOTIMER_ALLIANCE_ID` | `None` | **Required for ALLIANCE visibility.** Your EVE alliance ID; stamped on timers so structuretimers shows them to your alliance. Without it, timers fall back to unrestricted visibility. |
+| `AUTOTIMER_CORPORATION_ID` | `None` | Required for CORPORATION visibility, analogous to the alliance ID. |
 | `AUTOTIMER_IS_IMPORTANT` | `False` | Flag created timers as important. |
 | `AUTOTIMER_DUPLICATE_WINDOW_MINUTES` | `5` | Pastes matching an existing timer (same system + structure) within this window are skipped as duplicates. |
 
