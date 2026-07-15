@@ -103,7 +103,16 @@ class AutoTimer(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        bot.add_view(StructureTypeView())
+        self._view_registered = False
+
+    @commands.Cog.listener("on_ready")
+    async def register_persistent_view(self):
+        # Views can only be created once the event loop is running, and
+        # on_ready can fire again on reconnects - register only once.
+        if not self._view_registered:
+            self.bot.add_view(StructureTypeView())
+            self._view_registered = True
+            logger.info("Registered persistent structure type view")
 
     @commands.Cog.listener("on_message")
     async def on_message(self, message):
