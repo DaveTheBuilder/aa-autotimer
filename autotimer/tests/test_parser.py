@@ -81,3 +81,47 @@ def test_skips_paste_with_invalid_date():
     text = "6RQ9-A - 10-6\n24,429 km\nReinforced until 2026.13.45 02:50:16"
 
     assert parse_message(text) == []
+
+
+def test_parses_mercenary_den_paste():
+    text = "P-E9GN IV\nreinforced until 2026.07.21 12:52"
+
+    result = parse_message(text)
+
+    assert len(result) == 1
+    parsed = result[0]
+    assert parsed.solar_system_name == "P-E9GN"
+    assert parsed.planet == 4
+    assert parsed.moon is None
+    assert parsed.is_mercenary_den is True
+    assert parsed.structure_name == "IV"
+    assert parsed.location_details == "Planet IV"
+    assert str(parsed) == "P-E9GN - IV"
+    assert parsed.date == datetime(2026, 7, 21, 12, 52, tzinfo=timezone.utc)
+
+
+def test_mercenary_den_paste_with_seconds():
+    text = "P-E9GN IV\nReinforced until 2026.07.21 12:52:30"
+
+    result = parse_message(text)
+
+    assert result[0].date == datetime(2026, 7, 21, 12, 52, 30, tzinfo=timezone.utc)
+
+
+def test_pos_paste_is_not_mercenary_den():
+    assert parse_message(SAMPLE)[0].is_mercenary_den is False
+
+
+def test_mercenary_den_and_pos_paste_in_one_message_keep_order():
+    text = (
+        "P-E9GN IV\n"
+        "reinforced until 2026.07.21 12:52\n"
+        "and also:\n"
+        f"{SAMPLE}\n"
+    )
+
+    result = parse_message(text)
+
+    assert len(result) == 2
+    assert result[0].solar_system_name == "P-E9GN"
+    assert result[1].solar_system_name == "6RQ9-A"

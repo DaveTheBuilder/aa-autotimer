@@ -135,6 +135,16 @@ class AutoTimer(commands.Cog):
             logger.warning(
                 "Could not react to message %d", message.id, exc_info=True
             )
+
+        if all(p.is_mercenary_den for p in parsed):
+            # The paste format itself is unambiguous - no need to ask.
+            create_timers_from_message.delay(
+                message_content=message.content,
+                channel_id=message.channel.id,
+                author_name=str(message.author.display_name),
+            )
+            return
+
         timeout = app_settings.select_timeout_seconds()
         try:
             await message.reply(

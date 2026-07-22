@@ -77,6 +77,12 @@ class TestCreateTimersFromMessage(TestCase):
             eve_group=group,
             published=True,
         )
+        cls.merc_den_type = EveType.objects.create(
+            id=85230,
+            name="Mercenary Den",
+            eve_group=group,
+            published=True,
+        )
         cls.alliance = EveAllianceInfo.objects.create(
             alliance_id=99005000,
             alliance_name="Test Alliance",
@@ -157,6 +163,20 @@ class TestCreateTimersFromMessage(TestCase):
         timer = Timer.objects.get()
         self.assertEqual(timer.visibility, Timer.Visibility.UNRESTRICTED)
         self.assertIsNone(timer.eve_alliance)
+
+    def test_mercenary_den_paste_defaults_without_type_override(
+        self, mock_send_feedback
+    ):
+        merc_den = f"P-E9GN IV\nReinforced until {FUTURE_DATE_STR}"
+
+        create_timers_from_message(
+            message_content=merc_den, channel_id=42, author_name="Big Dave"
+        )
+
+        timer = Timer.objects.get()
+        self.assertEqual(timer.structure_type, self.merc_den_type)
+        self.assertEqual(timer.structure_name, "IV")
+        self.assertEqual(timer.location_details, "Planet IV")
 
     def test_uses_selected_structure_type(self, mock_send_feedback):
         create_timers_from_message(

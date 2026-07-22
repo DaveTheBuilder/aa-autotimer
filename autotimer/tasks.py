@@ -73,9 +73,13 @@ def _create_timer(
         logger.info("%s: duplicate timer, skipping", parsed)
         return DUPLICATE, None, None
 
-    structure_type, _ = EveType.objects.get_or_create_esi(
-        id=structure_type_id or app_settings.structure_type_id()
-    )
+    if structure_type_id is None:
+        structure_type_id = (
+            app_settings.mercenary_den_type_id()
+            if parsed.is_mercenary_den
+            else app_settings.structure_type_id()
+        )
+    structure_type, _ = EveType.objects.get_or_create_esi(id=structure_type_id)
     visibility, eve_alliance, eve_corporation = _resolve_visibility()
     notes = f"Created from Discord paste by {author_name}."
     if parsed.distance:

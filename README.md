@@ -21,12 +21,15 @@ timer was created (or telling you it was a duplicate / stale / unparsable).
 
 - A cog for [allianceauth-discordbot](https://github.com/Solar-Helix-Independent-Transport/allianceauth-discordbot)
   listens for messages in the configured channels.
-- Messages containing a paste get a ⏳ reaction and a reply with a
-  **structure type dropdown** (Skyhook, Sov Hub, citadels, ... — configurable).
-- Picking a type hands the paste to a Celery task, which resolves the solar
-  system (from local eveuniverse data, falling back to ESI), guards against
-  duplicate and elapsed timers, and creates a `structuretimers` Timer via the
-  ORM. The bot replies with the result.
+- Messages containing a paste get a ⏳ reaction. For paste formats where the
+  structure type is ambiguous, the bot also replies with a **structure type
+  dropdown** (Skyhook, Sov Hub, citadels, ... — configurable); Mercenary Den
+  pastes are unambiguous and skip the dropdown entirely.
+- Picking a type (or, for Mercenary Dens, just the paste itself) hands the
+  paste to a Celery task, which resolves the solar system (from local
+  eveuniverse data, falling back to ESI), guards against duplicate and
+  elapsed timers, and creates a `structuretimers` Timer via the ORM. The bot
+  replies with the result.
 - If nobody picks within `AUTOTIMER_SELECT_TIMEOUT_SECONDS` (default 10
   minutes), the timer is created with the default structure type, so timers
   are never lost. The dropdown survives bot restarts.
@@ -76,6 +79,7 @@ All settings go in your Auth `local.py`.
 | `AUTOTIMER_CHANNEL_IDS` | `[]` | **Required.** List of Discord channel IDs to watch for pastes. |
 | `AUTOTIMER_STRUCTURE_TYPE_CHOICES` | Skyhook, Sov Hub, Astrahus, Fortizar, Keepstar, Ansiblex | Options in the structure type dropdown, as a list of `("Label", type_id)` pairs (max 25). |
 | `AUTOTIMER_STRUCTURE_TYPE_ID` | `81080` | Eve type ID used when nobody picks from the dropdown before the timeout. Default is Orbital Skyhook. |
+| `AUTOTIMER_MERCENARY_DEN_TYPE_ID` | `85230` | Eve type ID used for timers parsed from a Mercenary Den paste (always this type — no dropdown shown). |
 | `AUTOTIMER_SELECT_TIMEOUT_SECONDS` | `600` | How long to wait for a dropdown pick before creating the timer with the default type. |
 | `AUTOTIMER_TIMER_TYPE` | `"FINAL"` | Timer type. One of `NONE`, `ARMOR`, `HULL`, `FINAL`, `ANCHORING`, `UNANCHORING`, `MOONMINING`, `THEFT`, `PRELIMINARY`. |
 | `AUTOTIMER_OBJECTIVE` | `"HOSTILE"` | Objective. One of `UNDEFINED`, `HOSTILE`, `FRIENDLY`, `NEUTRAL`. |
@@ -85,7 +89,10 @@ All settings go in your Auth `local.py`.
 | `AUTOTIMER_IS_IMPORTANT` | `False` | Flag created timers as important. |
 | `AUTOTIMER_DUPLICATE_WINDOW_MINUTES` | `5` | Pastes matching an existing timer (same system + structure) within this window are skipped as duplicates. |
 
-## Supported paste format
+## Supported paste formats
+
+Planet-moon structures (POS towers, Skyhooks, Sov Hubs, citadels, ...) — the
+structure type isn't in the paste, so the bot asks via the dropdown:
 
 ```
 <system> - <planet>-<moon>
@@ -93,7 +100,16 @@ All settings go in your Auth `local.py`.
 Reinforced until YYYY.MM.DD HH:MM:SS
 ```
 
-The timestamp is interpreted as EVE time (UTC). Multiple pastes in a single
+Mercenary Dens, which sit on a planet with no moon — the format itself is
+unambiguous, so the bot skips the dropdown and creates the timer right away
+as a Mercenary Den (`AUTOTIMER_MERCENARY_DEN_TYPE_ID`, default `85230`):
+
+```
+<system> <planet numeral>
+Reinforced until YYYY.MM.DD HH:MM[:SS]
+```
+
+Timestamps are interpreted as EVE time (UTC). Multiple pastes in a single
 message are all processed; chatter around the paste is ignored. Pastes with a
 date in the past are ignored. New formats can be added in
 [autotimer/parser.py](autotimer/parser.py).
