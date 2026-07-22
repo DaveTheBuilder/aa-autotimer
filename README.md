@@ -80,6 +80,7 @@ All settings go in your Auth `local.py`.
 | `AUTOTIMER_STRUCTURE_TYPE_CHOICES` | Skyhook, Sov Hub, Astrahus, Fortizar, Keepstar, Ansiblex | Options in the structure type dropdown, as a list of `("Label", type_id)` pairs (max 25). |
 | `AUTOTIMER_STRUCTURE_TYPE_ID` | `81080` | Eve type ID used when nobody picks from the dropdown before the timeout. Default is Orbital Skyhook. |
 | `AUTOTIMER_MERCENARY_DEN_TYPE_ID` | `85230` | Eve type ID used for timers parsed from a Mercenary Den paste (always this type — no dropdown shown). |
+| `AUTOTIMER_ANSIBLEX_TYPE_ID` | `35841` | Eve type ID used for timers parsed from an Ansiblex paste (always this type — no dropdown shown). |
 | `AUTOTIMER_SELECT_TIMEOUT_SECONDS` | `600` | How long to wait for a dropdown pick before creating the timer with the default type. |
 | `AUTOTIMER_TIMER_TYPE` | `"FINAL"` | Timer type. One of `NONE`, `ARMOR`, `HULL`, `FINAL`, `ANCHORING`, `UNANCHORING`, `MOONMINING`, `THEFT`, `PRELIMINARY`. |
 | `AUTOTIMER_OBJECTIVE` | `"HOSTILE"` | Objective. One of `UNDEFINED`, `HOSTILE`, `FRIENDLY`, `NEUTRAL`. |
@@ -107,6 +108,16 @@ as a Mercenary Den (`AUTOTIMER_MERCENARY_DEN_TYPE_ID`, default `85230`):
 ```
 <system> <planet numeral>
 Reinforced until YYYY.MM.DD HH:MM[:SS]
+```
+
+Ansiblex Jump Bridges, which connect two systems — also unambiguous, so the
+bot skips the dropdown and creates the timer as an Ansiblex Jump Bridge
+(`AUTOTIMER_ANSIBLEX_TYPE_ID`, default `35841`):
+
+```
+<system> » <destination system> - <suffix>   (suffix optional)
+<distance>            (optional)
+Reinforced until YYYY.MM.DD HH:MM:SS
 ```
 
 Timestamps are interpreted as EVE time (UTC). Multiple pastes in a single

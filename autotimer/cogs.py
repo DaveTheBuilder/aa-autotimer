@@ -136,7 +136,7 @@ class AutoTimer(commands.Cog):
                 "Could not react to message %d", message.id, exc_info=True
             )
 
-        if all(p.is_mercenary_den for p in parsed):
+        if all(p.is_certain_type for p in parsed):
             # The paste format itself is unambiguous - no need to ask.
             create_timers_from_message.delay(
                 message_content=message.content,

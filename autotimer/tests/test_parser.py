@@ -93,7 +93,8 @@ def test_parses_mercenary_den_paste():
     assert parsed.solar_system_name == "P-E9GN"
     assert parsed.planet == 4
     assert parsed.moon is None
-    assert parsed.is_mercenary_den is True
+    assert parsed.is_certain_type is True
+    assert parsed.kind == "mercenary_den"
     assert parsed.structure_name == "IV"
     assert parsed.location_details == "Planet IV"
     assert str(parsed) == "P-E9GN - IV"
@@ -108,8 +109,9 @@ def test_mercenary_den_paste_with_seconds():
     assert result[0].date == datetime(2026, 7, 21, 12, 52, 30, tzinfo=timezone.utc)
 
 
-def test_pos_paste_is_not_mercenary_den():
-    assert parse_message(SAMPLE)[0].is_mercenary_den is False
+def test_pos_paste_is_not_certain_type():
+    assert parse_message(SAMPLE)[0].is_certain_type is False
+    assert parse_message(SAMPLE)[0].kind == "moon"
 
 
 def test_mercenary_den_and_pos_paste_in_one_message_keep_order():
@@ -125,3 +127,41 @@ def test_mercenary_den_and_pos_paste_in_one_message_keep_order():
     assert len(result) == 2
     assert result[0].solar_system_name == "P-E9GN"
     assert result[1].solar_system_name == "6RQ9-A"
+
+
+def test_parses_ansiblex_paste():
+    text = "K42-IE » Q-EHMJ - TO H-5\n1,279 km\nReinforced until 2026.07.22 11:22:00"
+
+    result = parse_message(text)
+
+    assert len(result) == 1
+    parsed = result[0]
+    assert parsed.solar_system_name == "K42-IE"
+    assert parsed.destination_system_name == "Q-EHMJ"
+    assert parsed.ansiblex_suffix == "TO H-5"
+    assert parsed.kind == "ansiblex"
+    assert parsed.is_certain_type is True
+    assert parsed.distance == "1,279 km"
+    assert parsed.structure_name == "» Q-EHMJ - TO H-5"
+    assert parsed.location_details == "Ansiblex to Q-EHMJ"
+    assert str(parsed) == "K42-IE - » Q-EHMJ - TO H-5"
+    assert parsed.date == datetime(2026, 7, 22, 11, 22, 0, tzinfo=timezone.utc)
+
+
+def test_parses_ansiblex_paste_without_suffix():
+    text = "K42-IE » Q-EHMJ\nReinforced until 2026.07.22 11:22:00"
+
+    result = parse_message(text)
+
+    assert len(result) == 1
+    assert result[0].ansiblex_suffix is None
+    assert result[0].structure_name == "» Q-EHMJ"
+
+
+def test_parses_ansiblex_paste_without_distance_line():
+    text = "K42-IE » Q-EHMJ - TO H-5\nReinforced until 2026.07.22 11:22:00"
+
+    result = parse_message(text)
+
+    assert len(result) == 1
+    assert result[0].distance is None

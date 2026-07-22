@@ -59,6 +59,15 @@ class TestCreateTimersFromMessage(TestCase):
             position_y=0,
             position_z=0,
         )
+        cls.k42ie_system = EveSolarSystem.objects.create(
+            id=30000002,
+            name="K42-IE",
+            eve_constellation=constellation,
+            security_status=-0.4,
+            position_x=0,
+            position_y=0,
+            position_z=0,
+        )
         category = EveCategory.objects.create(
             id=23, name="Starbase", published=True
         )
@@ -80,6 +89,12 @@ class TestCreateTimersFromMessage(TestCase):
         cls.merc_den_type = EveType.objects.create(
             id=85230,
             name="Mercenary Den",
+            eve_group=group,
+            published=True,
+        )
+        cls.ansiblex_type = EveType.objects.create(
+            id=35841,
+            name="Ansiblex Jump Bridge",
             eve_group=group,
             published=True,
         )
@@ -177,6 +192,23 @@ class TestCreateTimersFromMessage(TestCase):
         self.assertEqual(timer.structure_type, self.merc_den_type)
         self.assertEqual(timer.structure_name, "IV")
         self.assertEqual(timer.location_details, "Planet IV")
+
+    def test_ansiblex_paste_defaults_without_type_override(self, mock_send_feedback):
+        ansiblex = (
+            "K42-IE » Q-EHMJ - TO H-5\n"
+            "1,279 km\n"
+            f"Reinforced until {FUTURE_DATE_STR}"
+        )
+
+        create_timers_from_message(
+            message_content=ansiblex, channel_id=42, author_name="Big Dave"
+        )
+
+        timer = Timer.objects.get()
+        self.assertEqual(timer.eve_solar_system, self.k42ie_system)
+        self.assertEqual(timer.structure_type, self.ansiblex_type)
+        self.assertEqual(timer.structure_name, "\N{RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK} Q-EHMJ - TO H-5")
+        self.assertEqual(timer.location_details, "Ansiblex to Q-EHMJ")
 
     def test_uses_selected_structure_type(self, mock_send_feedback):
         create_timers_from_message(

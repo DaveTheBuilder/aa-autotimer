@@ -49,6 +49,13 @@ def mercenary_den_type_id() -> int:
     return int(getattr(settings, "AUTOTIMER_MERCENARY_DEN_TYPE_ID", 85230))
 
 
+def ansiblex_type_id() -> int:
+    """Eve type ID used for timers parsed from an Ansiblex paste (a
+    ``system » system`` connection). Default is 35841 (Ansiblex Jump
+    Bridge)."""
+    return int(getattr(settings, "AUTOTIMER_ANSIBLEX_TYPE_ID", 35841))
+
+
 def select_timeout_seconds() -> int:
     """How long to wait for a dropdown selection before creating the timer
     with the default structure type."""

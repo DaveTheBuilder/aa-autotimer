@@ -1,8 +1,9 @@
 """Parsing of EVE client structure pastes.
 
-Two paste formats (both copied from the EVE client) are supported:
+Three paste formats (all copied from the EVE client) are supported:
 
-Planet-moon structures (POS towers, Skyhooks, Sov Hubs, citadels, ...)::
+Planet-moon structures (POS towers, Skyhooks, Sov Hubs, citadels, ...) - the
+structure type isn't in the paste, so the caller must ask the user::
 
     6RQ9-A - 10-6
     24,429 km
@@ -19,9 +20,21 @@ distance line::
     reinforced until 2026.07.21 12:52
 
 Line 1 is ``<solar system> <planet numeral>``, line 2 is the reinforcement
-exit timestamp (seconds are optional here). Since this format is
-unambiguous, timers parsed from it skip the structure-type dropdown - see
-``ParsedTimer.is_mercenary_den``.
+exit timestamp (seconds are optional here).
+
+Ansiblex Jump Bridges, which connect two systems::
+
+    K42-IE » Q-EHMJ - TO H-5
+    1,279 km
+    Reinforced until 2026.07.22 11:22:00
+
+Line 1 is ``<solar system> » <destination system> - <suffix>`` (suffix is
+free text, e.g. a direction label; optional), otherwise the same shape as
+the planet-moon paste.
+
+The Mercenary Den and Ansiblex formats are unambiguous about the structure
+type, so timers parsed from them skip the structure-type dropdown - see
+``ParsedTimer.is_certain_type``.
 
 New paste formats can be supported by adding further compiled patterns and
 a branch in ``parse_message`` that turns a match into a ``ParsedTimer``.
@@ -34,22 +47,34 @@ from typing import List, Optional
 
 EVE_TIME_FORMAT = "%Y.%m.%d %H:%M:%S"
 
+_DISTANCE = r"(?:[ \t]*(?P<distance>[\d.,]+\s*(?:km|m|AU))[ \t]*\r?\n)?"
+_TIMESTAMP = r"[ \t]*Reinforced until[ \t]+(?P<timestamp>\d{4}\.\d{2}\.\d{2}[ \t]+\d{2}:\d{2}(?::\d{2})?)"
+
 # System names never contain " - ", which separates them from the
 # planet-moon designation on line 1.
 _POS_PASTE = re.compile(
     r"^[ \t]*(?P<system>[A-Za-z0-9][A-Za-z0-9\-.]*)"
     r"[ \t]+-[ \t]+(?P<planet>\d+)-(?P<moon>\d+)[ \t]*\r?\n"
-    r"(?:[ \t]*(?P<distance>[\d.,]+\s*(?:km|m|AU))[ \t]*\r?\n)?"
-    r"[ \t]*Reinforced until[ \t]+"
-    r"(?P<timestamp>\d{4}\.\d{2}\.\d{2}[ \t]+\d{2}:\d{2}:\d{2})",
+    + _DISTANCE
+    + _TIMESTAMP,
     re.MULTILINE | re.IGNORECASE,
 )
 
 _MERC_DEN_PASTE = re.compile(
     r"^[ \t]*(?P<system>[A-Za-z0-9][A-Za-z0-9\-.]*)"
     r"[ \t]+(?P<planet>[IVXLCDM]+)[ \t]*\r?\n"
-    r"[ \t]*Reinforced until[ \t]+"
-    r"(?P<timestamp>\d{4}\.\d{2}\.\d{2}[ \t]+\d{2}:\d{2}(?::\d{2})?)",
+    + _TIMESTAMP,
+    re.MULTILINE | re.IGNORECASE,
+)
+
+# » is U+00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK, as pasted by the
+# EVE client between the two systems an Ansiblex connects.
+_ANSIBLEX_PASTE = re.compile(
+    r"^[ \t]*(?P<system>[A-Za-z0-9][A-Za-z0-9\-.]*)"
+    r"[ \t]*»[ \t]*(?P<destination>[A-Za-z0-9][A-Za-z0-9\-.]*)"
+    r"(?:[ \t]*-[ \t]*(?P<suffix>[^\r\n]+?))?[ \t]*\r?\n"
+    + _DISTANCE
+    + _TIMESTAMP,
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -89,29 +114,39 @@ class ParsedTimer:
     """A structure timer extracted from a Discord message."""
 
     solar_system_name: str
-    planet: int
     date: datetime  # timezone-aware, UTC
+    planet: Optional[int] = None
     moon: Optional[int] = None
+    planet_label: Optional[str] = None  # roman numeral text, e.g. "IV"
+    destination_system_name: Optional[str] = None  # ansiblex far side
+    ansiblex_suffix: Optional[str] = None  # e.g. "TO H-5"
     distance: Optional[str] = None
-    planet_label: Optional[str] = None  # original text, e.g. "IV"
+    # "moon" (planet-moon paste, ambiguous type - ask via dropdown),
+    # "mercenary_den" or "ansiblex" (paste format names the type outright).
+    kind: str = "moon"
 
     @property
-    def is_mercenary_den(self) -> bool:
-        """Mercenary Dens sit on a planet with no moon - the only paste
-        format currently supported that names a structure type outright."""
-        return self.moon is None
+    def is_certain_type(self) -> bool:
+        """True when the paste format itself identifies the structure type,
+        so the structure-type dropdown can be skipped."""
+        return self.kind != "moon"
 
     @property
     def structure_name(self) -> str:
-        if self.moon is not None:
-            return f"{self.planet}-{self.moon}"
-        return self.planet_label or str(self.planet)
+        if self.kind == "mercenary_den":
+            return self.planet_label or str(self.planet)
+        if self.kind == "ansiblex":
+            suffix = f" - {self.ansiblex_suffix}" if self.ansiblex_suffix else ""
+            return f"\N{RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK} {self.destination_system_name}{suffix}"
+        return f"{self.planet}-{self.moon}"
 
     @property
     def location_details(self) -> str:
-        if self.moon is not None:
-            return f"Planet {self.planet} - Moon {self.moon}"
-        return f"Planet {self.planet_label or self.planet}"
+        if self.kind == "mercenary_den":
+            return f"Planet {self.planet_label or self.planet}"
+        if self.kind == "ansiblex":
+            return f"Ansiblex to {self.destination_system_name}"
+        return f"Planet {self.planet} - Moon {self.moon}"
 
     def __str__(self) -> str:
         return f"{self.solar_system_name} - {self.structure_name}"
@@ -156,6 +191,26 @@ def parse_message(text: str) -> List[ParsedTimer]:
                     planet=planet,
                     planet_label=match["planet"],
                     date=date,
+                    kind="mercenary_den",
+                ),
+            )
+        )
+
+    for match in _ANSIBLEX_PASTE.finditer(text):
+        date = _parse_eve_timestamp(match["timestamp"])
+        if date is None:
+            continue
+        suffix = (match["suffix"] or "").strip() or None
+        matches.append(
+            (
+                match.start(),
+                ParsedTimer(
+                    solar_system_name=match["system"],
+                    date=date,
+                    distance=match["distance"],
+                    destination_system_name=match["destination"],
+                    ansiblex_suffix=suffix,
+                    kind="ansiblex",
                 ),
             )
         )

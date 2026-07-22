@@ -22,6 +22,13 @@ DUPLICATE = "duplicate"
 STALE = "stale"
 ERROR = "error"
 
+# Maps ParsedTimer.kind to the app_settings resolver for its default type,
+# for paste formats that name the structure type outright.
+_DEFAULT_TYPE_RESOLVERS = {
+    "mercenary_den": app_settings.mercenary_den_type_id,
+    "ansiblex": app_settings.ansiblex_type_id,
+}
+
 
 @shared_task
 def create_timers_from_message(
@@ -74,11 +81,9 @@ def _create_timer(
         return DUPLICATE, None, None
 
     if structure_type_id is None:
-        structure_type_id = (
-            app_settings.mercenary_den_type_id()
-            if parsed.is_mercenary_den
-            else app_settings.structure_type_id()
-        )
+        structure_type_id = _DEFAULT_TYPE_RESOLVERS.get(
+            parsed.kind, app_settings.structure_type_id
+        )()
     structure_type, _ = EveType.objects.get_or_create_esi(id=structure_type_id)
     visibility, eve_alliance, eve_corporation = _resolve_visibility()
     notes = f"Created from Discord paste by {author_name}."
