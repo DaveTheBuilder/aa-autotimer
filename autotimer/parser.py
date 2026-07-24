@@ -36,6 +36,18 @@ The Mercenary Den and Ansiblex formats are unambiguous about the structure
 type, so timers parsed from them skip the structure-type dropdown - see
 ``ParsedTimer.is_certain_type``.
 
+Any other named structure (a player-named station, citadel, etc.) also
+follows the planet-moon shape but with a free-text name instead of
+``<planet>-<moon>``::
+
+    VSJ-PP - O-VWPB GATE
+    878 km
+    Reinforced until 2026.07.24 11:47:24
+
+The name is whatever the owner called the structure - it says nothing about
+the structure type, so this format asks via the dropdown just like the
+planet-moon paste.
+
 New paste formats can be supported by adding further compiled patterns and
 a branch in ``parse_message`` that turns a match into a ``ParsedTimer``.
 """
@@ -73,6 +85,17 @@ _ANSIBLEX_PASTE = re.compile(
     r"^[ \t]*(?P<system>[A-Za-z0-9][A-Za-z0-9\-.]*)"
     r"[ \t]*»[ \t]*(?P<destination>[A-Za-z0-9][A-Za-z0-9\-.]*)"
     r"(?:[ \t]*-[ \t]*(?P<suffix>[^\r\n]+?))?[ \t]*\r?\n"
+    + _DISTANCE
+    + _TIMESTAMP,
+    re.MULTILINE | re.IGNORECASE,
+)
+
+# Any other named structure - same shape as _POS_PASTE but with a free-text
+# name instead of <planet>-<moon>. The negative lookahead skips the
+# digit-digit case, which _POS_PASTE already claims.
+_NAMED_STRUCTURE_PASTE = re.compile(
+    r"^[ \t]*(?P<system>[A-Za-z0-9][A-Za-z0-9\-.]*)"
+    r"[ \t]+-[ \t]+(?!\d+-\d+[ \t]*\r?\n)(?P<name>[^\r\n]+?)[ \t]*\r?\n"
     + _DISTANCE
     + _TIMESTAMP,
     re.MULTILINE | re.IGNORECASE,
@@ -120,16 +143,17 @@ class ParsedTimer:
     planet_label: Optional[str] = None  # roman numeral text, e.g. "IV"
     destination_system_name: Optional[str] = None  # ansiblex far side
     ansiblex_suffix: Optional[str] = None  # e.g. "TO H-5"
+    structure_label: Optional[str] = None  # free-text name, e.g. "O-VWPB GATE"
     distance: Optional[str] = None
-    # "moon" (planet-moon paste, ambiguous type - ask via dropdown),
+    # "ambiguous" (type not named in the paste - ask via dropdown),
     # "mercenary_den" or "ansiblex" (paste format names the type outright).
-    kind: str = "moon"
+    kind: str = "ambiguous"
 
     @property
     def is_certain_type(self) -> bool:
         """True when the paste format itself identifies the structure type,
         so the structure-type dropdown can be skipped."""
-        return self.kind != "moon"
+        return self.kind != "ambiguous"
 
     @property
     def structure_name(self) -> str:
@@ -138,6 +162,8 @@ class ParsedTimer:
         if self.kind == "ansiblex":
             suffix = f" - {self.ansiblex_suffix}" if self.ansiblex_suffix else ""
             return f"\N{RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK} {self.destination_system_name}{suffix}"
+        if self.structure_label is not None:
+            return self.structure_label
         return f"{self.planet}-{self.moon}"
 
     @property
@@ -146,6 +172,8 @@ class ParsedTimer:
             return f"Planet {self.planet_label or self.planet}"
         if self.kind == "ansiblex":
             return f"Ansiblex to {self.destination_system_name}"
+        if self.structure_label is not None:
+            return self.structure_label
         return f"Planet {self.planet} - Moon {self.moon}"
 
     def __str__(self) -> str:
@@ -211,6 +239,22 @@ def parse_message(text: str) -> List[ParsedTimer]:
                     destination_system_name=match["destination"],
                     ansiblex_suffix=suffix,
                     kind="ansiblex",
+                ),
+            )
+        )
+
+    for match in _NAMED_STRUCTURE_PASTE.finditer(text):
+        date = _parse_eve_timestamp(match["timestamp"])
+        if date is None:
+            continue
+        matches.append(
+            (
+                match.start(),
+                ParsedTimer(
+                    solar_system_name=match["system"],
+                    date=date,
+                    distance=match["distance"],
+                    structure_label=match["name"].strip(),
                 ),
             )
         )

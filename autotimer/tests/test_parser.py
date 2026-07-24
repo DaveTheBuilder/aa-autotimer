@@ -111,7 +111,7 @@ def test_mercenary_den_paste_with_seconds():
 
 def test_pos_paste_is_not_certain_type():
     assert parse_message(SAMPLE)[0].is_certain_type is False
-    assert parse_message(SAMPLE)[0].kind == "moon"
+    assert parse_message(SAMPLE)[0].kind == "ambiguous"
 
 
 def test_mercenary_den_and_pos_paste_in_one_message_keep_order():
@@ -165,3 +165,27 @@ def test_parses_ansiblex_paste_without_distance_line():
 
     assert len(result) == 1
     assert result[0].distance is None
+
+
+def test_parses_named_structure_paste():
+    text = "VSJ-PP - O-VWPB GATE\n878 km\nReinforced until 2026.07.24 11:47:24"
+
+    result = parse_message(text)
+
+    assert len(result) == 1
+    parsed = result[0]
+    assert parsed.solar_system_name == "VSJ-PP"
+    assert parsed.structure_label == "O-VWPB GATE"
+    assert parsed.structure_name == "O-VWPB GATE"
+    assert parsed.location_details == "O-VWPB GATE"
+    assert parsed.kind == "ambiguous"
+    assert parsed.is_certain_type is False
+    assert str(parsed) == "VSJ-PP - O-VWPB GATE"
+    assert parsed.date == datetime(2026, 7, 24, 11, 47, 24, tzinfo=timezone.utc)
+
+
+def test_named_structure_paste_does_not_double_match_planet_moon_paste():
+    # The negative lookahead must not steal the digit-digit case from
+    # _POS_PASTE.
+    assert len(parse_message(SAMPLE)) == 1
+    assert parse_message(SAMPLE)[0].structure_label is None

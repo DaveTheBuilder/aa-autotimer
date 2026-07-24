@@ -210,6 +210,25 @@ class TestCreateTimersFromMessage(TestCase):
         self.assertEqual(timer.structure_name, "\N{RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK} Q-EHMJ - TO H-5")
         self.assertEqual(timer.location_details, "Ansiblex to Q-EHMJ")
 
+    def test_named_structure_paste_uses_selected_type(self, mock_send_feedback):
+        named = (
+            "6RQ9-A - O-VWPB GATE\n"
+            "878 km\n"
+            f"Reinforced until {FUTURE_DATE_STR}"
+        )
+
+        create_timers_from_message(
+            message_content=named,
+            channel_id=42,
+            author_name="Big Dave",
+            structure_type_id=81080,
+        )
+
+        timer = Timer.objects.get()
+        self.assertEqual(timer.structure_type, self.skyhook_type)
+        self.assertEqual(timer.structure_name, "O-VWPB GATE")
+        self.assertEqual(timer.location_details, "O-VWPB GATE")
+
     def test_uses_selected_structure_type(self, mock_send_feedback):
         create_timers_from_message(
             message_content=SAMPLE,

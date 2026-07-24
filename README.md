@@ -120,6 +120,16 @@ bot skips the dropdown and creates the timer as an Ansiblex Jump Bridge
 Reinforced until YYYY.MM.DD HH:MM:SS
 ```
 
+Any other named structure (a player-named station, citadel, etc.) — the
+name says nothing about the structure type, so this also asks via the
+dropdown, same as the planet-moon paste:
+
+```
+<system> - <free-text name>
+<distance>            (optional)
+Reinforced until YYYY.MM.DD HH:MM:SS
+```
+
 Timestamps are interpreted as EVE time (UTC). Multiple pastes in a single
 message are all processed; chatter around the paste is ignored. Pastes with a
 date in the past are ignored. New formats can be added in
