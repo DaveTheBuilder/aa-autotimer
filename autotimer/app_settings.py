@@ -15,7 +15,15 @@ _DEFAULT_STRUCTURE_TYPE_CHOICES = [
     ("Astrahus", 35832),
     ("Fortizar", 35833),
     ("Keepstar", 35834),
+    ("Raitaru", 35825),
+    ("Azbel", 35826),
+    ("Sotiyo", 35827),
+    ("Athanor", 35835),
+    ("Tatara", 35836),
+    ("Metenox Moon Drill", 81826),
     ("Ansiblex Jump Bridge", 35841),
+    ("Pharolux Cyno Beacon", 35840),
+    ("Tenebrex Cyno Jammer", 37534),
 ]
 
 

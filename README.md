@@ -77,7 +77,7 @@ All settings go in your Auth `local.py`.
 | Setting | Default | Description |
 | ------- | ------- | ----------- |
 | `AUTOTIMER_CHANNEL_IDS` | `[]` | **Required.** List of Discord channel IDs to watch for pastes. |
-| `AUTOTIMER_STRUCTURE_TYPE_CHOICES` | Skyhook, Sov Hub, Astrahus, Fortizar, Keepstar, Ansiblex | Options in the structure type dropdown, as a list of `("Label", type_id)` pairs (max 25). |
+| `AUTOTIMER_STRUCTURE_TYPE_CHOICES` | Skyhook, Sov Hub, citadels (Astrahus/Fortizar/Keepstar), engineering complexes (Raitaru/Azbel/Sotiyo), refineries (Athanor/Tatara), Metenox, Ansiblex, cyno beacon, cyno jammer | Options in the structure type dropdown, as a list of `("Label", type_id)` pairs (max 25). |
 | `AUTOTIMER_STRUCTURE_TYPE_ID` | `81080` | Eve type ID used when nobody picks from the dropdown before the timeout. Default is Orbital Skyhook. |
 | `AUTOTIMER_MERCENARY_DEN_TYPE_ID` | `85230` | Eve type ID used for timers parsed from a Mercenary Den paste (always this type — no dropdown shown). |
 | `AUTOTIMER_ANSIBLEX_TYPE_ID` | `35841` | Eve type ID used for timers parsed from an Ansiblex paste (always this type — no dropdown shown). |
